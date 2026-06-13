@@ -222,7 +222,7 @@ function selectTab(type) {
 function buildTabs(data) {
   const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
-  const groupName = { mission: 'Missions', world: 'Open-world bounties' };
+  const groupName = { mission: 'Missions', world: 'Bounties' };
   let lastGroup = null;
   for (const t of data.types) {
     if (t.group && t.group !== lastGroup) {

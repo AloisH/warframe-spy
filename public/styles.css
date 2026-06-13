@@ -231,6 +231,12 @@ body {
   color: var(--ember); border: 1px solid rgba(232,134,90,.5);
   padding: 2px 7px; border-radius: 2px; text-transform: uppercase;
 }
+.boss-tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .04em; white-space: nowrap;
+  color: var(--rot-boss); border: 1px solid color-mix(in srgb, var(--rot-boss) 35%, transparent);
+  background: color-mix(in srgb, var(--rot-boss) 10%, transparent);
+  padding: 2px 8px; border-radius: 2px;
+}
 
 /* stacked rotation bar */
 .bar { height: 12px; display: flex; gap: 2px; background: rgba(255,255,255,.03); }

@@ -85,13 +85,16 @@ function buildCard(mission, domIndex) {
   el.style.setProperty('--accent', 'var(--gold)');
   el.style.animationDelay = `${Math.min(domIndex * 35, 560)}ms`;
   const tag = mission.isEvent ? '<span class="tag">Event Node</span>' : '';
+  const boss = mission.boss
+    ? `<span class="boss-tag" title="Boss">⚔ ${esc(mission.boss)}</span>`
+    : '';
   const rotKeys = Object.keys(mission.rotations);
 
   el.innerHTML = `
     <div class="mission__head">
       <div class="rank">00</div>
       <div class="info">
-        <div class="node">${esc(mission.node || mission.name)} ${tag}</div>
+        <div class="node">${esc(mission.node || mission.name)} ${tag}${boss}</div>
         <div class="planet">${esc(mission.planet)}</div>
       </div>
       <div class="barwrap">

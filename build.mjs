@@ -35,26 +35,28 @@ const CURATED_TYPES = [
 ];
 const CURATED = new Set(CURATED_TYPES);
 
-// Assassination nodes -> their boss source name(s) in "Mod Drops by Source".
-// A boss kill also drops mods (not in the assassination reward table), so we
-// fold those in. Multi-member bosses (Hyena Pack) list all members.
+// Assassination nodes -> their boss. `sources` are the boss's entries in
+// "Mod Drops by Source"; a boss kill also drops mods (not in the assassination
+// reward table), so we fold those in. Multi-member bosses (Hyena Pack, Raptor)
+// list every member. `boss` is the display name shown next to the node.
 const ASSASSIN_BOSSES = {
-  'Mercury/Tolstoj': ['Captain Vor'],
-  'Venus/Fossa': ['Jackal'],
-  'Earth/Oro': ['Councilor Vay Hek'],
-  'Mars/War': ['Lt Lech Kril'],
-  'Jupiter/Themisto': ['Alad V'],
-  'Saturn/Tethys': ['General Sargas Ruk'],
-  'Uranus/Titania': ['Tyl Regor'],
-  'Neptune/Psamathe': ['Hyena Ln2', 'Hyena Ng', 'Hyena Pb', 'Hyena Th'],
-  'Pluto/Hades': ['Ambulas'],
-  'Ceres/Exta': ['Lt Lech Kril', 'Captain Vor'],
-  'Sedna/Merrow': ['Kela De Thaym'],
-  'Europa/Naamah': ['Raptor', 'Raptor Mt', 'Raptor Ns', 'Raptor Rv', 'Raptor Rx'],
-  'Phobos/Iliad': ['The Sergeant'],
-  'Deimos/Magnacidium': ['Lephantis'],
-  'Deimos/Effervo': ['H-09 Efervon Tank'],
-  'Höllvania/Assassinate: H-09 Tank': ['H-09 Efervon Tank'],
+  'Mercury/Tolstoj': { boss: 'Captain Vor', sources: ['Captain Vor'] },
+  'Venus/Fossa': { boss: 'The Jackal', sources: ['Jackal'] },
+  'Earth/Oro': { boss: 'Councilor Vay Hek', sources: ['Councilor Vay Hek'] },
+  'Mars/War': { boss: 'Lt. Lech Kril', sources: ['Lt Lech Kril'] },
+  'Jupiter/Themisto': { boss: 'Alad V', sources: ['Alad V'] },
+  'Jupiter/The Ropalolyst': { boss: 'Ropalolyst', sources: [] },
+  'Saturn/Tethys': { boss: 'Sargas Ruk', sources: ['General Sargas Ruk'] },
+  'Uranus/Titania': { boss: 'Tyl Regor', sources: ['Tyl Regor'] },
+  'Neptune/Psamathe': { boss: 'Hyena Pack', sources: ['Hyena Ln2', 'Hyena Ng', 'Hyena Pb', 'Hyena Th'] },
+  'Pluto/Hades': { boss: 'Ambulas', sources: ['Ambulas'] },
+  'Ceres/Exta': { boss: 'Lech Kril & Vor', sources: ['Lt Lech Kril', 'Captain Vor'] },
+  'Sedna/Merrow': { boss: 'Kela De Thaym', sources: ['Kela De Thaym'] },
+  'Europa/Naamah': { boss: 'Raptor', sources: ['Raptor', 'Raptor Mt', 'Raptor Ns', 'Raptor Rv', 'Raptor Rx'] },
+  'Phobos/Iliad': { boss: 'The Sergeant', sources: ['The Sergeant'] },
+  'Deimos/Magnacidium': { boss: 'Lephantis', sources: ['Lephantis'] },
+  'Deimos/Effervo': { boss: 'Efervon Tank', sources: ['H-09 Efervon Tank'] },
+  'Höllvania/Assassinate: H-09 Tank': { boss: 'Efervon Tank', sources: ['H-09 Efervon Tank'] },
 };
 
 // Merge a boss's mod sub-tables into one per-kill list: effective odds =
@@ -125,9 +127,10 @@ async function main() {
   let bossNodes = 0;
   for (const m of missions) {
     if (m.type !== 'Assassination') continue;
-    const sources = ASSASSIN_BOSSES[`${m.planet}/${m.node}`];
-    if (!sources) continue;
-    const drops = bossModDrops(sources, modBySource);
+    const entry = ASSASSIN_BOSSES[`${m.planet}/${m.node}`];
+    if (!entry) continue;
+    m.boss = entry.boss;
+    const drops = bossModDrops(entry.sources, modBySource);
     if (drops.length) {
       m.bossMods = drops;
       bossNodes++;
@@ -208,6 +211,7 @@ async function main() {
       planet: m.planet,
       node: m.node,
       isEvent: m.isEvent,
+      ...(m.boss ? { boss: m.boss } : {}),
       metricLabel: label,
       weights: Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, fmt(v)])),
       labels,

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spy Profit Index · Warframe</title>
+  <meta name="description" content="Which Warframe Spy mission is the most profitable in platinum, ranked from the official drop table and warframe.market prices." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <div class="masthead__bar">
+      <div class="brand">
+        <span class="brand__glyph">◈</span>
+        <div class="brand__text">
+          <h1>SPY&nbsp;PROFIT&nbsp;INDEX</h1>
+          <p>Warframe · platinum yield per full vault clear</p>
+        </div>
+      </div>
+      <div class="readout" id="readout">
+        <div class="readout__row"><span>STATUS</span><b class="readout__live">— SYNCING —</b></div>
+        <div class="readout__row"><span>MISSIONS</span><b id="r-missions">--</b></div>
+        <div class="readout__row"><span>ITEMS PRICED</span><b id="r-items">--</b></div>
+        <div class="readout__row"><span>UPDATED</span><b id="r-updated">--</b></div>
+      </div>
+    </div>
+    <p class="method" id="method"></p>
+  </header>
+
+  <main class="board" id="board" aria-live="polite">
+    <div class="loading">Decrypting drop tables…</div>
+  </main>
+
+  <footer class="foot">
+    <p>
+      Drop rates from Digital Extremes' official drop table · prices from
+      <a href="https://warframe.market" target="_blank" rel="noopener">warframe.market</a>
+      (PC, crossplay). Not affiliated with Digital Extremes.
+    </p>
+    <p class="foot__legend">
+      <span class="dot dot--a"></span>Rotation&nbsp;A
+      <span class="dot dot--b"></span>Rotation&nbsp;B
+      <span class="dot dot--c"></span>Rotation&nbsp;C
+      <span class="foot__sep">·</span> Click any mission to expand its drop breakdown.
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

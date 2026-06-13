@@ -1,20 +1,22 @@
-// Build step: download the drop table, parse Spy missions, price every
-// tradable reward on warframe.market, and write public/data.json.
+// Build step: download the drop table, parse missions of the curated types,
+// price every tradable reward on warframe.market, and write public/data.json.
 //
-// Item values are stored RAW (the average of the 5 lowest online sell orders).
-// The frontend applies an adjustable minimum-value filter and recomputes the
-// per-mission expected platinum live, so the threshold lives in the UI.
+// Item values are stored RAW (avg of the 5 lowest online sell orders); the
+// frontend applies an adjustable minimum-value filter live.
+//
+// Profitability metric (per mission, comparable WITHIN a type via the tabs):
+//   - Spy:                total = EV(A) + EV(B) + EV(C)   (one reward per vault)
+//   - Endless (A/B/C…):   total = weighted avg per reward, A-A-B-C frequency
+//                         (A counts double), i.e. 0.5·A + 0.25·B + 0.25·C
+//   - Single-completion:  total = EV(A)                    (one reward per run)
 //
 // Usage: node build.mjs
-//
-// Tunables (env vars):
-//   MIN_PLAT   default value of the frontend filter slider (default 3)
-//   CACHE_TTL  seconds to reuse the cached drop-table HTML & catalogue (default 86400)
+// Env: MIN_PLAT (default 3, slider start), CACHE_TTL (seconds, default 86400)
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseSpyMissions } from './lib/parse.mjs';
+import { parseMissions } from './lib/parse.mjs';
 import { loadCatalogue, priceItem } from './lib/wfm.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,15 +28,20 @@ const DROP_TABLE_URL =
 const DEFAULT_MIN_PLAT = Number(process.env.MIN_PLAT ?? 3);
 const CACHE_TTL = Number(process.env.CACHE_TTL ?? 86400) * 1000;
 
+// Curated, recognizable PvE mission types (tab order). Spy first (the original).
+const CURATED_TYPES = [
+  'Spy', 'Survival', 'Defense', 'Interception', 'Excavation', 'Disruption', 'Defection',
+  'Capture', 'Exterminate', 'Rescue', 'Sabotage', 'Mobile Defense', 'Assassination', 'Arena',
+];
+const CURATED = new Set(CURATED_TYPES);
+
 // --- helpers -------------------------------------------------------------
 
 async function cachedText(name, url) {
   const file = path.join(CACHE_DIR, name);
   try {
     const stat = await fs.stat(file);
-    if (Date.now() - stat.mtimeMs < CACHE_TTL) {
-      return fs.readFile(file, 'utf8');
-    }
+    if (Date.now() - stat.mtimeMs < CACHE_TTL) return fs.readFile(file, 'utf8');
   } catch {
     /* not cached yet */
   }
@@ -49,25 +56,40 @@ async function cachedText(name, url) {
 
 const fmt = (n) => Math.round(n * 100) / 100;
 
-// Expected value of a rotation / mission at a given minimum-value threshold.
-const rotEv = (rewards, t) =>
+// A-A-B-C reward frequency; A appears twice as often in the rotation cycle.
+const ROT_FREQ = { A: 2, B: 1, C: 1, D: 1, E: 1 };
+
+// Per-mission weighting of each rotation toward "expected plat per reward".
+function rotationWeights(type, rotKeys) {
+  if (type === 'Spy') return Object.fromEntries(rotKeys.map((k) => [k, 1])); // sum of 3 vaults
+  const present = rotKeys.filter((k) => ROT_FREQ[k] != null);
+  const sum = present.reduce((s, k) => s + ROT_FREQ[k], 0) || 1;
+  return Object.fromEntries(rotKeys.map((k) => [k, (ROT_FREQ[k] || 0) / sum]));
+}
+
+function metricLabel(type, rotKeys) {
+  if (type === 'Spy') return 'plat / full clear';
+  return rotKeys.length <= 1 ? 'plat / reward' : 'avg plat / reward';
+}
+
+const evAt = (rewards, t) =>
   rewards.reduce((s, r) => s + r.chance * (r.value >= t ? r.value : 0), 0);
-const missionTotal = (m, t) =>
-  Object.values(m.rotations).reduce((s, rw) => s + rotEv(rw, t), 0);
+const totalAt = (m, t) =>
+  Object.entries(m.rotations).reduce((s, [k, rw]) => s + (m.weights[k] || 0) * evAt(rw, t), 0);
 
 // --- main ----------------------------------------------------------------
 
 async function main() {
   console.log('1/4  Loading drop table...');
   const html = await cachedText('droptable.html', DROP_TABLE_URL);
-  const missions = parseSpyMissions(html);
-  console.log(`     ${missions.length} Spy missions parsed.`);
+  const all = parseMissions(html);
+  const missions = all.filter((m) => CURATED.has(m.type));
+  console.log(`     ${missions.length} missions across ${CURATED.size} curated types.`);
 
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
-  // Collect every distinct tradable reward across all missions.
-  const resolved = new Map(); // rewardName -> item|null
+  const resolved = new Map();
   const slugToItem = new Map();
   for (const m of missions) {
     for (const rewards of Object.values(m.rotations)) {
@@ -83,7 +105,7 @@ async function main() {
   console.log(`     ${slugToItem.size} unique tradable items to price.`);
 
   console.log('3/4  Pricing items on warframe.market...');
-  const valueBySlug = new Map(); // slug -> { value, sellPrices, subtype }
+  const valueBySlug = new Map();
   let done = 0;
   for (const [slug, item] of slugToItem) {
     try {
@@ -101,6 +123,8 @@ async function main() {
 
   console.log('4/4  Assembling mission data...');
   const out = missions.map((m) => {
+    const rotKeys = Object.keys(m.rotations).sort();
+    const weights = rotationWeights(m.type, rotKeys);
     const rotations = {};
     for (const [rot, rewards] of Object.entries(m.rotations)) {
       rotations[rot] = rewards
@@ -112,17 +136,35 @@ async function main() {
             slug: item?.slug ?? null,
             tradable: Boolean(item),
             chance: fmt(r.chance),
-            value: priced ? priced.value : 0, // raw market value, 0 if untradable
+            value: priced ? priced.value : 0,
           };
         })
-        // Most valuable reward first; stable regardless of the live filter.
         .sort((a, b) => b.value - a.value || b.chance - a.chance);
     }
-    return { name: m.name, planet: m.planet, node: m.node, isEvent: m.isEvent, rotations };
+    return {
+      name: m.name,
+      type: m.type,
+      planet: m.planet,
+      node: m.node,
+      isEvent: m.isEvent,
+      metricLabel: metricLabel(m.type, rotKeys),
+      weights: Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, fmt(v)])),
+      rotations,
+    };
   });
 
-  // Sensible default order in the JSON (the frontend re-ranks live).
-  out.sort((a, b) => missionTotal(b, DEFAULT_MIN_PLAT) - missionTotal(a, DEFAULT_MIN_PLAT));
+  // Tidy JSON order: curated type order, then by value within type.
+  out.sort(
+    (a, b) =>
+      CURATED_TYPES.indexOf(a.type) - CURATED_TYPES.indexOf(b.type) ||
+      totalAt(b, DEFAULT_MIN_PLAT) - totalAt(a, DEFAULT_MIN_PLAT)
+  );
+
+  const typeList = CURATED_TYPES.filter((t) => out.some((m) => m.type === t)).map((t) => ({
+    key: t,
+    label: t,
+    count: out.filter((m) => m.type === t).length,
+  }));
 
   const maxItemValue = Math.max(
     0,
@@ -139,9 +181,10 @@ async function main() {
       defaultMinPlat: DEFAULT_MIN_PLAT,
       maxItemValue: fmt(maxItemValue),
       valueMetric: 'average of up to 5 lowest online sell orders (raw, unfiltered)',
-      rotationModel: 'full 3-vault clear: total = EV(A) + EV(B) + EV(C)',
+      model: 'Spy = EV(A)+EV(B)+EV(C); endless = A-A-B-C weighted plat/reward; single = EV(A)',
       relicSubtype: 'intact',
     },
+    types: typeList,
     missionCount: out.length,
     pricedItemCount: slugToItem.size,
     missions: out,
@@ -150,9 +193,12 @@ async function main() {
   await fs.mkdir(PUBLIC_DIR, { recursive: true });
   await fs.writeFile(path.join(PUBLIC_DIR, 'data.json'), JSON.stringify(payload, null, 2));
 
-  console.log(`\nDone. Top 5 Spy missions by expected platinum (filter ${DEFAULT_MIN_PLAT}p, full clear):`);
-  for (const m of out.slice(0, 5)) {
-    console.log(`  ${missionTotal(m, DEFAULT_MIN_PLAT).toFixed(1)}p  ${m.name}`);
+  console.log(`\nDone. ${out.length} missions, ${typeList.length} types. Top per type (filter ${DEFAULT_MIN_PLAT}p):`);
+  for (const t of typeList) {
+    const top = out
+      .filter((m) => m.type === t.key)
+      .sort((a, b) => totalAt(b, DEFAULT_MIN_PLAT) - totalAt(a, DEFAULT_MIN_PLAT))[0];
+    console.log(`  ${t.label.padEnd(15)} ${totalAt(top, DEFAULT_MIN_PLAT).toFixed(1)}p  ${top.planet}/${top.node}`);
   }
   console.log('\nWrote public/data.json');
 }

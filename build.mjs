@@ -16,7 +16,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseMissions, parseDropsBySource } from './lib/parse.mjs';
+import { parseMissions, parseDropsBySource, parseBounties } from './lib/parse.mjs';
 import { loadCatalogue, priceItem } from './lib/wfm.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +34,19 @@ const CURATED_TYPES = [
   'Capture', 'Exterminate', 'Rescue', 'Sabotage', 'Mobile Defense', 'Assassination', 'Arena',
 ];
 const CURATED = new Set(CURATED_TYPES);
+
+// Open-world bounty "types" (tabs), shown after the mission types.
+const WORLD_TYPES = ['Cetus', 'Orb Vallis', 'Cambion Drift', 'Zariman', "Albrecht's Labs", 'Hex'];
+const TYPE_ORDER = [...CURATED_TYPES, ...WORLD_TYPES];
+
+// Bounty rotation weighting: A/B/C cycle is A-A-B-C; a lone "Final" is the
+// whole run. Used for "expected plat per full bounty run".
+function bountyWeights(rotKeys) {
+  if (rotKeys.length === 1) return { [rotKeys[0]]: 1 };
+  const freq = { A: 2, B: 1, C: 1 };
+  const sum = rotKeys.reduce((s, k) => s + (freq[k] || 1), 0);
+  return Object.fromEntries(rotKeys.map((k) => [k, (freq[k] || 1) / sum]));
+}
 
 // Assassination nodes -> their boss. `sources` are the boss's entries in
 // "Mod Drops by Source"; a boss kill also drops mods (not in the assassination
@@ -138,6 +151,19 @@ async function main() {
   }
   console.log(`     boss mod drops attached to ${bossNodes} Assassination nodes.`);
 
+  // Open-world bounties: each tier becomes a mission-shaped row (type = world).
+  const bounties = parseBounties(html).map((t) => ({
+    name: `${t.world} ${t.node}`,
+    type: t.world,
+    planet: t.world,
+    node: t.node,
+    isEvent: false,
+    isBounty: true,
+    rotations: t.rotations,
+  }));
+  missions.push(...bounties);
+  console.log(`     ${bounties.length} bounty tiers across ${WORLD_TYPES.length} open worlds.`);
+
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
@@ -188,13 +214,25 @@ async function main() {
 
   const out = missions.map((m) => {
     const rotKeys = Object.keys(m.rotations).sort();
-    const weights = rotationWeights(m.type, rotKeys);
     const labels = {};
     const rotations = {};
     for (const [rot, rewards] of Object.entries(m.rotations)) {
       rotations[rot] = rewards.map(priceRow).sort(byValue);
     }
 
+    if (m.isBounty) {
+      const weights = bountyWeights(rotKeys);
+      if (rotKeys.length === 1 && rotKeys[0] === 'Final') labels.Final = 'Final stage';
+      return {
+        name: m.name, type: m.type, planet: m.planet, node: m.node, isEvent: false,
+        metricLabel: 'plat / bounty run',
+        weights: Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, fmt(v)])),
+        labels,
+        rotations,
+      };
+    }
+
+    const weights = rotationWeights(m.type, rotKeys);
     let label = metricLabel(m.type, rotKeys);
     if (m.bossMods?.length) {
       // Per-kill mod drops are an additional, independent source (weight 1).
@@ -219,17 +257,18 @@ async function main() {
     };
   });
 
-  // Tidy JSON order: curated type order, then by value within type.
+  // Tidy JSON order: type order (missions then worlds), then by value within type.
   out.sort(
     (a, b) =>
-      CURATED_TYPES.indexOf(a.type) - CURATED_TYPES.indexOf(b.type) ||
+      TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type) ||
       totalAt(b, DEFAULT_MIN_PLAT) - totalAt(a, DEFAULT_MIN_PLAT)
   );
 
-  const typeList = CURATED_TYPES.filter((t) => out.some((m) => m.type === t)).map((t) => ({
+  const typeList = TYPE_ORDER.filter((t) => out.some((m) => m.type === t)).map((t) => ({
     key: t,
     label: t,
     count: out.filter((m) => m.type === t).length,
+    group: WORLD_TYPES.includes(t) ? 'world' : 'mission',
   }));
 
   const maxItemValue = Math.max(

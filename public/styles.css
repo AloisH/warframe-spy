@@ -21,6 +21,7 @@
   --rot-b: #d8b46a;
   --rot-c: #cf7bff;
   --rot-boss: #6ee7a8;
+  --rot-final: #7aa2f7;
 
   --text:      #e7eef6;
   --muted:     #8a98a8;
@@ -134,6 +135,12 @@ body {
 }
 .tab__count { margin-left: 7px; font-size: 9.5px; opacity: .55; }
 .tab.active .tab__count { opacity: .7; }
+.tabs__group {
+  flex-basis: 100%; margin: 10px 0 1px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--faint);
+}
+.tabs__group:first-child { margin-top: 0; }
 
 /* ============================================================ CONTROLS */
 .controls {
@@ -245,6 +252,7 @@ body {
 .bar__seg--b { background: linear-gradient(90deg, var(--rot-b), color-mix(in srgb, var(--rot-b) 60%, #000)); }
 .bar__seg--c { background: linear-gradient(90deg, var(--rot-c), color-mix(in srgb, var(--rot-c) 60%, #000)); }
 .bar__seg--boss { background: linear-gradient(90deg, var(--rot-boss), color-mix(in srgb, var(--rot-boss) 60%, #000)); }
+.bar__seg--final { background: linear-gradient(90deg, var(--rot-final), color-mix(in srgb, var(--rot-final) 60%, #000)); }
 .bar__seg--d, .bar__seg--e { background: var(--muted); }
 .barwrap { display: flex; flex-direction: column; gap: 6px; }
 .barwrap small { font-family: var(--mono); font-size: 10px; color: var(--faint); letter-spacing: .08em; }
@@ -283,6 +291,7 @@ body {
 .rot--b .rot__name { color: var(--rot-b); }
 .rot--c .rot__name { color: var(--rot-c); }
 .rot--boss .rot__name { color: var(--rot-boss); }
+.rot--final .rot__name { color: var(--rot-final); }
 .rot__ev { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--gold); }
 .rot__ev small { color: var(--faint); font-weight: 400; font-size: 10px; }
 

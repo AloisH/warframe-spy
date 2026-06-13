@@ -4,8 +4,10 @@
 
 Ranks Warframe missions by how much **platinum** they're worth to farm, by
 combining the official drop table with live [warframe.market](https://warframe.market)
-sell prices. Pick a mission type from the tab bar (Spy, Survival, Defense,
-Capture, …) and missions of that type are ranked against each other.
+sell prices. Pick a mission type or open-world from the tab bar (Spy, Survival,
+Defense, Capture, …, plus Cetus / Orb Vallis / Cambion Drift / Zariman /
+Albrecht's Labs / Hex bounties) and that group's missions are ranked against
+each other.
 
 A small two-part app:
 
@@ -16,8 +18,8 @@ A small two-part app:
    tabbed, ranked leaderboard with a per-rotation drop breakdown.
 
 The build runs server-side so visitors never hit warframe.market directly (which
-avoids CORS issues and respects the API's 3 req/s rate limit). Pricing ~220 items
-takes about **1.5 minutes**.
+avoids CORS issues and respects the API's 3 req/s rate limit). Pricing ~400 items
+takes about **2.5 minutes**.
 
 ## How profitability is calculated
 
@@ -44,6 +46,12 @@ takes about **1.5 minutes**.
     e.g. the Jackal's near-guaranteed Blunderbuss, or Kela De Thaym's clan mods —
     and the assassination reward table alone (non-tradable Warframe parts) would
     badly undersell these missions. Node→boss mapping lives in `ASSASSIN_BOSSES`.
+  - **Open-world bounties** (Cetus, Orb Vallis, Cambion Drift, Zariman, Albrecht's
+    Labs, Hex) — **plat per full bounty run**: each level tier is a row; all of a
+    rotation's stage rewards are flattened into one list (an item's per-run odds
+    are summed across stages but **capped at 100%**, so it reads as "chance to get
+    at least one this run"), then weighted by the A‑A‑B‑C rotation cycle. Worlds
+    that only list a final-stage reward use that single table.
 
 The curated types and their tab order live in `CURATED_TYPES` in `build.mjs`.
 PvP (Conclave), Railjack, Duviri, sabotage caches and event one-offs are excluded.
@@ -70,7 +78,7 @@ prices are always fetched fresh.
 ```
 build.mjs          orchestrator: parse -> price -> write data.json
 serve.mjs          tiny zero-dependency static file server
-lib/parse.mjs      drop-table HTML -> all missions (type, rotations, drop chances)
+lib/parse.mjs      drop-table HTML -> missions, bounties, and by-source drops
 lib/wfm.mjs        warframe.market client (rate-limited) + item pricing
 public/            index.html, styles.css, app.js, data.json (generated)
 ```

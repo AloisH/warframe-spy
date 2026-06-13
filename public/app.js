@@ -222,7 +222,16 @@ function selectTab(type) {
 function buildTabs(data) {
   const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
+  const groupName = { mission: 'Missions', world: 'Open-world bounties' };
+  let lastGroup = null;
   for (const t of data.types) {
+    if (t.group && t.group !== lastGroup) {
+      const sep = document.createElement('span');
+      sep.className = 'tabs__group';
+      sep.textContent = groupName[t.group] || t.group;
+      tabs.appendChild(sep);
+      lastGroup = t.group;
+    }
     const btn = document.createElement('button');
     btn.className = 'tab';
     btn.dataset.type = t.key;

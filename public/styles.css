@@ -240,6 +240,21 @@ body {
 }
 .foot a { color: var(--cyan); text-decoration: none; }
 .foot a:hover { text-decoration: underline; }
+.foot__links { margin: 0 0 14px; }
+.ghlink {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .06em;
+  color: var(--muted) !important; text-decoration: none !important;
+  border: 1px solid var(--line); background: rgba(17,23,32,.6);
+  padding: 7px 13px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  transition: color .2s, border-color .2s, box-shadow .2s;
+}
+.ghlink svg { display: block; }
+.ghlink:hover {
+  color: var(--gold-hi) !important; border-color: var(--gold);
+  box-shadow: 0 0 14px rgba(216,180,106,.25);
+}
 .foot__legend { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-family: var(--mono); letter-spacing: .06em; }
 .foot__sep { color: var(--line); }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-left: 10px; }

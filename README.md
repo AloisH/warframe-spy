@@ -24,8 +24,10 @@ takes about **2.5 minutes**.
 ## How profitability is calculated
 
 - **Item value** = the average of the up to **5 lowest live sell orders** from
-  online sellers (`GET /v2/orders/item/{slug}/top`). Relics are priced as
-  **intact** (`subtype=intact`), since that's what missions drop.
+  online sellers (`GET /v2/orders/item/{slug}/top`), priced **as dropped**:
+  - Mods & arcanes at **rank 0** (`rank=0`) — a dropped arcane is unranked; the
+    maxed rank-5 copies (≈21 fused) sell for far more and would otherwise inflate it.
+  - Relics as **intact** (`subtype=intact`).
 - Items that aren't tradable on warframe.market (credit/endo/resource caches,
   specter & non-prime Warframe blueprints) count as **0**.
 - A **minimum-value filter** (slider on the page) ignores any reward selling below

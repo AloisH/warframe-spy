@@ -22,14 +22,19 @@ avoids CORS issues and respects the API's 3 req/s rate limit).
 - **Item value** = the average of the up to **5 lowest live sell orders** from
   online sellers (`GET /v2/orders/item/{slug}/top`). Relics are priced as
   **intact** (`subtype=intact`), since that's what Spy missions drop.
-- Items whose value is **under 3 platinum**, or that aren't tradable on
-  warframe.market (credit/endo caches, non-prime Warframe blueprints), count as **0**.
+- Items that aren't tradable on warframe.market (credit/endo caches, non-prime
+  Warframe blueprints) count as **0**.
+- A **minimum-value filter** (slider on the page) ignores any reward selling below
+  *X* platinum — because daily trades are limited, low-value drops aren't worth a
+  trade slot. Filtered rewards count as **0**. The default is **3p**.
 - **Rotation EV** = Σ (drop chance × item value) for the rewards in that rotation.
   Each rotation's chances sum to ~100%, so this is the expected plat from one reward.
 - **Mission score** = `EV(A) + EV(B) + EV(C)` — the platinum you'd expect from a
   **full 3-vault clear** (you get one A, one B, and one C reward).
 
-The 3-plat threshold is tunable via the `MIN_PLAT` env var.
+`build.mjs` stores **raw** market values, so the slider re-thresholds and re-ranks
+everything live in the browser. The slider's starting value is set by the `MIN_PLAT`
+env var at build time (default 3).
 
 ## Usage
 

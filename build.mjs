@@ -1,11 +1,14 @@
 // Build step: download the drop table, parse Spy missions, price every
-// tradable reward on warframe.market, compute per-mission expected platinum,
-// and write public/data.json for the static frontend.
+// tradable reward on warframe.market, and write public/data.json.
+//
+// Item values are stored RAW (the average of the 5 lowest online sell orders).
+// The frontend applies an adjustable minimum-value filter and recomputes the
+// per-mission expected platinum live, so the threshold lives in the UI.
 //
 // Usage: node build.mjs
 //
 // Tunables (env vars):
-//   MIN_PLAT   items whose sell value is below this are treated as 0 (default 3)
+//   MIN_PLAT   default value of the frontend filter slider (default 3)
 //   CACHE_TTL  seconds to reuse the cached drop-table HTML & catalogue (default 86400)
 
 import fs from 'node:fs/promises';
@@ -20,7 +23,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const DROP_TABLE_URL =
   'https://warframe-web-assets.nyc3.cdn.digitaloceanspaces.com/uploads/cms/hnfvc0o3jnfvc873njb03enrf56.html';
 
-const MIN_PLAT = Number(process.env.MIN_PLAT ?? 3);
+const DEFAULT_MIN_PLAT = Number(process.env.MIN_PLAT ?? 3);
 const CACHE_TTL = Number(process.env.CACHE_TTL ?? 86400) * 1000;
 
 // --- helpers -------------------------------------------------------------
@@ -45,6 +48,12 @@ async function cachedText(name, url) {
 }
 
 const fmt = (n) => Math.round(n * 100) / 100;
+
+// Expected value of a rotation / mission at a given minimum-value threshold.
+const rotEv = (rewards, t) =>
+  rewards.reduce((s, r) => s + r.chance * (r.value >= t ? r.value : 0), 0);
+const missionTotal = (m, t) =>
+  Object.values(m.rotations).reduce((s, rw) => s + rotEv(rw, t), 0);
 
 // --- main ----------------------------------------------------------------
 
@@ -73,12 +82,12 @@ async function main() {
   }
   console.log(`     ${slugToItem.size} unique tradable items to price.`);
 
-  console.log(`3/4  Pricing items on warframe.market (min ${MIN_PLAT}p)...`);
+  console.log('3/4  Pricing items on warframe.market...');
   const valueBySlug = new Map(); // slug -> { value, sellPrices, subtype }
   let done = 0;
   for (const [slug, item] of slugToItem) {
     try {
-      valueBySlug.set(slug, await priceItem(item, { minPlat: MIN_PLAT }));
+      valueBySlug.set(slug, await priceItem(item));
     } catch (err) {
       console.warn(`     ! ${slug}: ${err.message}`);
       valueBySlug.set(slug, { value: 0, sellPrices: [], subtype: null });
@@ -90,45 +99,35 @@ async function main() {
   }
   process.stdout.write('\n');
 
-  console.log('4/4  Computing expected platinum per mission...');
+  console.log('4/4  Assembling mission data...');
   const out = missions.map((m) => {
     const rotations = {};
-    let totalValue = 0;
     for (const [rot, rewards] of Object.entries(m.rotations)) {
-      let ev = 0;
-      const detailed = rewards.map((r) => {
-        const item = resolved.get(r.item);
-        const priced = item ? valueBySlug.get(item.slug) : null;
-        const value = priced ? priced.value : 0;
-        const contribution = fmt(r.chance * value);
-        ev += contribution;
-        return {
-          item: r.item,
-          slug: item?.slug ?? null,
-          tradable: Boolean(item),
-          chance: fmt(r.chance),
-          value,
-          sellPrices: priced?.sellPrices ?? [],
-          contribution,
-        };
-      });
-      // Sort rewards within a rotation by contribution, biggest first.
-      detailed.sort((a, b) => b.contribution - a.contribution);
-      rotations[rot] = { ev: fmt(ev), rewards: detailed };
-      totalValue += ev;
+      rotations[rot] = rewards
+        .map((r) => {
+          const item = resolved.get(r.item);
+          const priced = item ? valueBySlug.get(item.slug) : null;
+          return {
+            item: r.item,
+            slug: item?.slug ?? null,
+            tradable: Boolean(item),
+            chance: fmt(r.chance),
+            value: priced ? priced.value : 0, // raw market value, 0 if untradable
+          };
+        })
+        // Most valuable reward first; stable regardless of the live filter.
+        .sort((a, b) => b.value - a.value || b.chance - a.chance);
     }
-    return {
-      name: m.name,
-      planet: m.planet,
-      node: m.node,
-      isEvent: m.isEvent,
-      // Expected platinum from a full 3-vault clear (one A + one B + one C reward).
-      totalValue: fmt(totalValue),
-      rotations,
-    };
+    return { name: m.name, planet: m.planet, node: m.node, isEvent: m.isEvent, rotations };
   });
 
-  out.sort((a, b) => b.totalValue - a.totalValue);
+  // Sensible default order in the JSON (the frontend re-ranks live).
+  out.sort((a, b) => missionTotal(b, DEFAULT_MIN_PLAT) - missionTotal(a, DEFAULT_MIN_PLAT));
+
+  const maxItemValue = Math.max(
+    0,
+    ...out.flatMap((m) => Object.values(m.rotations).flat().map((r) => r.value))
+  );
 
   const payload = {
     generatedAt: new Date().toISOString(),
@@ -137,9 +136,10 @@ async function main() {
       market: 'https://warframe.market (v2 API, PC, crossplay)',
     },
     params: {
-      minPlat: MIN_PLAT,
-      valueMetric: 'average of up to 5 lowest online sell orders',
-      rotationModel: 'full 3-vault clear: totalValue = EV(A) + EV(B) + EV(C)',
+      defaultMinPlat: DEFAULT_MIN_PLAT,
+      maxItemValue: fmt(maxItemValue),
+      valueMetric: 'average of up to 5 lowest online sell orders (raw, unfiltered)',
+      rotationModel: 'full 3-vault clear: total = EV(A) + EV(B) + EV(C)',
       relicSubtype: 'intact',
     },
     missionCount: out.length,
@@ -148,14 +148,11 @@ async function main() {
   };
 
   await fs.mkdir(PUBLIC_DIR, { recursive: true });
-  await fs.writeFile(
-    path.join(PUBLIC_DIR, 'data.json'),
-    JSON.stringify(payload, null, 2)
-  );
+  await fs.writeFile(path.join(PUBLIC_DIR, 'data.json'), JSON.stringify(payload, null, 2));
 
-  console.log('\nDone. Top 5 Spy missions by expected platinum (full clear):');
+  console.log(`\nDone. Top 5 Spy missions by expected platinum (filter ${DEFAULT_MIN_PLAT}p, full clear):`);
   for (const m of out.slice(0, 5)) {
-    console.log(`  ${m.totalValue.toFixed(1)}p  ${m.name}`);
+    console.log(`  ${missionTotal(m, DEFAULT_MIN_PLAT).toFixed(1)}p  ${m.name}`);
   }
   console.log('\nWrote public/data.json');
 }

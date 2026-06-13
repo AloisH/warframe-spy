@@ -112,6 +112,43 @@ body {
 }
 .method b { color: var(--muted); font-weight: 500; }
 
+/* ============================================================ CONTROLS */
+.controls {
+  position: relative; z-index: 2;
+  max-width: 1080px; margin: 26px auto 0; padding: 16px 22px;
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(17,23,32,.7), rgba(12,16,20,.5));
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.ctrl { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ctrl__label {
+  font-family: var(--mono); font-size: 11px; color: var(--faint);
+  letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+}
+.ctrl input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; min-width: 180px; max-width: 460px; height: 4px;
+  border-radius: 2px; background: var(--line); outline: none; cursor: pointer;
+}
+.ctrl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--gold); border: 2px solid var(--bg);
+  box-shadow: 0 0 12px rgba(216,180,106,.6); cursor: pointer;
+  transition: transform .12s;
+}
+.ctrl input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.ctrl input[type="range"]::-moz-range-thumb {
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--gold); border: 2px solid var(--bg);
+  box-shadow: 0 0 12px rgba(216,180,106,.6); cursor: pointer;
+}
+.ctrl output {
+  font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--gold-hi);
+  min-width: 52px; text-align: right; text-shadow: 0 0 12px rgba(216,180,106,.4);
+}
+.ctrl__hint { margin: 11px 0 0; color: var(--faint); font-size: 11.5px; line-height: 1.5; }
+
 /* ============================================================ BOARD */
 .board {
   position: relative; z-index: 2;
@@ -154,7 +191,7 @@ body {
   font-family: var(--mono); font-weight: 700; font-size: 26px;
   color: var(--faint); text-align: center; letter-spacing: -.04em;
 }
-.mission--top .rank { color: var(--accent); text-shadow: 0 0 14px var(--accent); }
+.mission.is-first .rank { color: var(--accent); text-shadow: 0 0 14px var(--accent); }
 
 .info .node {
   font-size: 19px; font-weight: 600; letter-spacing: .02em;
@@ -217,6 +254,7 @@ body {
 .drop--zero .drop__name { color: var(--zero); }
 .drop__price { color: var(--text); text-align: right; }
 .drop__price--na { color: var(--zero); }
+.drop__price--cut { color: var(--zero); text-decoration: line-through; } /* below the live filter */
 .drop__chance { color: var(--faint); text-align: right; }
 .drop__contrib { color: var(--gold); font-weight: 500; text-align: right; }
 .drop--zero .drop__contrib { color: var(--zero); }

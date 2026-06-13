@@ -1,5 +1,7 @@
 # Spy Profit Index
 
+**🌐 Live site: https://aloish.github.io/warframe-spy/**
+
 Ranks every Warframe **Spy** mission by how much **platinum** it's worth to farm, by
 combining the official drop table with live [warframe.market](https://warframe.market)
 sell prices.

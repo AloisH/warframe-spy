@@ -47,11 +47,12 @@ takes about **2.5 minutes**.
     and the assassination reward table alone (non-tradable Warframe parts) would
     badly undersell these missions. Node→boss mapping lives in `ASSASSIN_BOSSES`.
   - **Open-world bounties** (Cetus, Orb Vallis, Cambion Drift, Zariman, Albrecht's
-    Labs, Hex) — **plat per full bounty run**: each level tier is a row; all of a
-    rotation's stage rewards are flattened into one list (an item's per-run odds
-    are summed across stages but **capped at 100%**, so it reads as "chance to get
-    at least one this run"), then weighted by the A‑A‑B‑C rotation cycle. Worlds
-    that only list a final-stage reward use that single table.
+    Labs, Hex) — **plat per full bounty run**: each bounty (level tier, plus
+    distinct variants like Ghoul / Isolation Vault / Arcana Vault) is a row. All of
+    a rotation's stage rewards are flattened into one list; an item appearing in
+    several stages gets its **probability of dropping at least once this run**
+    (`1 − Π(1 − p_stage)`, so it never exceeds 100%). Rotations are then weighted by
+    the A‑A‑B‑C cycle. Worlds that only list a final-stage reward use that table.
 
 The curated types and their tab order live in `CURATED_TYPES` in `build.mjs`.
 PvP (Conclave), Railjack, Duviri, sabotage caches and event one-offs are excluded.

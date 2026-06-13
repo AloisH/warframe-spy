@@ -16,7 +16,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseMissions } from './lib/parse.mjs';
+import { parseMissions, parseDropsBySource } from './lib/parse.mjs';
 import { loadCatalogue, priceItem } from './lib/wfm.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +34,40 @@ const CURATED_TYPES = [
   'Capture', 'Exterminate', 'Rescue', 'Sabotage', 'Mobile Defense', 'Assassination', 'Arena',
 ];
 const CURATED = new Set(CURATED_TYPES);
+
+// Assassination nodes -> their boss source name(s) in "Mod Drops by Source".
+// A boss kill also drops mods (not in the assassination reward table), so we
+// fold those in. Multi-member bosses (Hyena Pack) list all members.
+const ASSASSIN_BOSSES = {
+  'Mercury/Tolstoj': ['Captain Vor'],
+  'Venus/Fossa': ['Jackal'],
+  'Earth/Oro': ['Councilor Vay Hek'],
+  'Mars/War': ['Lt Lech Kril'],
+  'Jupiter/Themisto': ['Alad V'],
+  'Saturn/Tethys': ['General Sargas Ruk'],
+  'Uranus/Titania': ['Tyl Regor'],
+  'Neptune/Psamathe': ['Hyena Ln2', 'Hyena Ng', 'Hyena Pb', 'Hyena Th'],
+  'Pluto/Hades': ['Ambulas'],
+  'Ceres/Exta': ['Lt Lech Kril', 'Captain Vor'],
+  'Sedna/Merrow': ['Kela De Thaym'],
+  'Europa/Naamah': ['Raptor', 'Raptor Mt', 'Raptor Ns', 'Raptor Rv', 'Raptor Rx'],
+  'Phobos/Iliad': ['The Sergeant'],
+  'Deimos/Magnacidium': ['Lephantis'],
+  'Deimos/Effervo': ['H-09 Efervon Tank'],
+  'Höllvania/Assassinate: H-09 Tank': ['H-09 Efervon Tank'],
+};
+
+// Merge a boss's mod sub-tables into one per-kill list: effective odds =
+// item odds × sub-table drop chance, summed across sub-tables/members.
+function bossModDrops(sources, modBySource) {
+  const acc = new Map();
+  for (const src of sources) {
+    for (const d of modBySource.get(src) || []) {
+      acc.set(d.item, (acc.get(d.item) || 0) + d.tableChance * d.chance);
+    }
+  }
+  return [...acc].map(([item, chance]) => ({ item, chance }));
+}
 
 // --- helpers -------------------------------------------------------------
 
@@ -86,21 +120,35 @@ async function main() {
   const missions = all.filter((m) => CURATED.has(m.type));
   console.log(`     ${missions.length} missions across ${CURATED.size} curated types.`);
 
+  // Attach boss kill mod drops to Assassination nodes.
+  const modBySource = parseDropsBySource(html, 'modByAvatar', 'modByDrop');
+  let bossNodes = 0;
+  for (const m of missions) {
+    if (m.type !== 'Assassination') continue;
+    const sources = ASSASSIN_BOSSES[`${m.planet}/${m.node}`];
+    if (!sources) continue;
+    const drops = bossModDrops(sources, modBySource);
+    if (drops.length) {
+      m.bossMods = drops;
+      bossNodes++;
+    }
+  }
+  console.log(`     boss mod drops attached to ${bossNodes} Assassination nodes.`);
+
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
   const resolved = new Map();
   const slugToItem = new Map();
+  const note = (name) => {
+    if (resolved.has(name)) return;
+    const item = resolve(name);
+    resolved.set(name, item);
+    if (item) slugToItem.set(item.slug, item);
+  };
   for (const m of missions) {
-    for (const rewards of Object.values(m.rotations)) {
-      for (const r of rewards) {
-        if (!resolved.has(r.item)) {
-          const item = resolve(r.item);
-          resolved.set(r.item, item);
-          if (item) slugToItem.set(item.slug, item);
-        }
-      }
-    }
+    for (const rewards of Object.values(m.rotations)) for (const r of rewards) note(r.item);
+    for (const r of m.bossMods || []) note(r.item);
   }
   console.log(`     ${slugToItem.size} unique tradable items to price.`);
 
@@ -122,33 +170,47 @@ async function main() {
   process.stdout.write('\n');
 
   console.log('4/4  Assembling mission data...');
+  const priceRow = (r) => {
+    const item = resolved.get(r.item);
+    const priced = item ? valueBySlug.get(item.slug) : null;
+    return {
+      item: r.item,
+      slug: item?.slug ?? null,
+      tradable: Boolean(item),
+      chance: fmt(r.chance),
+      value: priced ? priced.value : 0,
+    };
+  };
+  const byValue = (a, b) => b.value - a.value || b.chance - a.chance;
+
   const out = missions.map((m) => {
     const rotKeys = Object.keys(m.rotations).sort();
     const weights = rotationWeights(m.type, rotKeys);
+    const labels = {};
     const rotations = {};
     for (const [rot, rewards] of Object.entries(m.rotations)) {
-      rotations[rot] = rewards
-        .map((r) => {
-          const item = resolved.get(r.item);
-          const priced = item ? valueBySlug.get(item.slug) : null;
-          return {
-            item: r.item,
-            slug: item?.slug ?? null,
-            tradable: Boolean(item),
-            chance: fmt(r.chance),
-            value: priced ? priced.value : 0,
-          };
-        })
-        .sort((a, b) => b.value - a.value || b.chance - a.chance);
+      rotations[rot] = rewards.map(priceRow).sort(byValue);
     }
+
+    let label = metricLabel(m.type, rotKeys);
+    if (m.bossMods?.length) {
+      // Per-kill mod drops are an additional, independent source (weight 1).
+      rotations.bossMods = m.bossMods.map(priceRow).sort(byValue);
+      weights.bossMods = 1;
+      labels.bossMods = 'Boss mods (per kill)';
+      for (const k of rotKeys) labels[k] = 'Kill reward';
+      label = 'plat / boss kill';
+    }
+
     return {
       name: m.name,
       type: m.type,
       planet: m.planet,
       node: m.node,
       isEvent: m.isEvent,
-      metricLabel: metricLabel(m.type, rotKeys),
+      metricLabel: label,
       weights: Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, fmt(v)])),
+      labels,
       rotations,
     };
   });

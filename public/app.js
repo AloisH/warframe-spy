@@ -6,8 +6,9 @@
 // 0.25 per reward; single-completion = {A:1}). Ranking happens within the
 // selected type, so the unit is comparable inside each tab.
 
-const ROTS = ['A', 'B', 'C', 'D', 'E'];
 const fmtPlat = (n) => (Math.round(n * 10) / 10).toFixed(1);
+const segClass = (key) => (key === 'bossMods' ? 'boss' : key.toLowerCase());
+const shortLabel = (key) => (key === 'bossMods' ? 'mods' : key);
 const esc = (s) =>
   String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -49,9 +50,9 @@ function buildRot(mission, rot) {
   const rewards = mission.rotations[rot];
   if (!rewards) return '';
   const weight = mission.weights?.[rot] ?? 1;
-  const multi = Object.keys(mission.weights || {}).length > 1;
+  const label = mission.labels?.[rot] || `Rotation ${rot}`;
   const badge =
-    multi && mission.type !== 'Spy'
+    mission.type !== 'Spy' && weight < 1
       ? `<span class="rot__weight" title="This rotation is ${Math.round(weight * 100)}% of the rewards you receive">${Math.round(weight * 100)}%</span>`
       : '';
   const rows = rewards
@@ -66,9 +67,9 @@ function buildRot(mission, rot) {
     )
     .join('');
   return `
-    <div class="rot rot--${rot.toLowerCase()}">
+    <div class="rot rot--${segClass(rot)}">
       <div class="rot__head">
-        <span><span class="rot__name">ROTATION ${rot}</span>${badge}</span>
+        <span><span class="rot__name">${esc(label)}</span>${badge}</span>
         <span class="rot__ev"><span class="evnum">0.0</span>p <small>/ drop</small></span>
       </div>
       <div class="drop drop--head" title="Expected value (EV) = sell price each × drop chance">
@@ -84,7 +85,7 @@ function buildCard(mission, domIndex) {
   el.style.setProperty('--accent', 'var(--gold)');
   el.style.animationDelay = `${Math.min(domIndex * 35, 560)}ms`;
   const tag = mission.isEvent ? '<span class="tag">Event Node</span>' : '';
-  const rotKeys = ROTS.filter((r) => mission.rotations[r]);
+  const rotKeys = Object.keys(mission.rotations);
 
   el.innerHTML = `
     <div class="mission__head">
@@ -94,7 +95,7 @@ function buildCard(mission, domIndex) {
         <div class="planet">${esc(mission.planet)}</div>
       </div>
       <div class="barwrap">
-        <div class="bar">${rotKeys.map((r) => `<span class="bar__seg bar__seg--${r.toLowerCase()}"></span>`).join('')}</div>
+        <div class="bar">${rotKeys.map((r) => `<span class="bar__seg bar__seg--${segClass(r)}"></span>`).join('')}</div>
         <small></small>
       </div>
       <div class="value-wrap">
@@ -113,9 +114,9 @@ function buildCard(mission, domIndex) {
   const rotEvEls = {};
   const segs = {};
   for (const rot of rotKeys) {
-    const rotEl = el.querySelector(`.rot--${rot.toLowerCase()}`);
+    const rotEl = el.querySelector(`.rot--${segClass(rot)}`);
     rotEvEls[rot] = rotEl.querySelector('.evnum');
-    segs[rot] = el.querySelector(`.bar__seg--${rot.toLowerCase()}`);
+    segs[rot] = el.querySelector(`.bar__seg--${segClass(rot)}`);
     dropsByRot[rot] = [...rotEl.querySelectorAll('.drop[data-i]')].map((rowEl) => ({
       reward: mission.rotations[rot][Number(rowEl.dataset.i)],
       rowEl,
@@ -189,7 +190,7 @@ function applyFilter() {
       c.segs[rot].style.flex = String(w);
       c.segs[rot].style.display = w > 0 ? 'block' : 'none';
     }
-    c.smallEl.textContent = c.rotKeys.map((r) => `${r} ${fmtPlat(c.rotWeighted[r] || 0)}`).join(' · ');
+    c.smallEl.textContent = c.rotKeys.map((r) => `${shortLabel(r)} ${fmtPlat(c.rotWeighted[r] || 0)}`).join(' · ');
   }
   [...cards]
     .sort((a, b) => b.total - a.total)

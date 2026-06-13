@@ -37,7 +37,13 @@ takes about **1.5 minutes**.
     — expected plat **per reward**, weighting rotations by their A‑A‑B‑C drop
     frequency: `0.5·EV(A) + 0.25·EV(B) + 0.25·EV(C)`.
   - **Single-completion** (Capture, Exterminate, Rescue, Sabotage, Mobile Defense,
-    Assassination, Arena) — `EV` of the single reward you get.
+    Arena) — `EV` of the single reward you get.
+  - **Assassination** — **plat per boss kill**: the kill reward table *plus* the
+    boss's mod drops (from "Mod Drops by Source"), folded into one per-kill source
+    where each mod's odds = `item% × mod-table drop chance`. This matters a lot —
+    e.g. the Jackal's near-guaranteed Blunderbuss, or Kela De Thaym's clan mods —
+    and the assassination reward table alone (non-tradable Warframe parts) would
+    badly undersell these missions. Node→boss mapping lives in `ASSASSIN_BOSSES`.
 
 The curated types and their tab order live in `CURATED_TYPES` in `build.mjs`.
 PvP (Conclave), Railjack, Duviri, sabotage caches and event one-offs are excluded.

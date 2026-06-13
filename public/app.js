@@ -2,6 +2,7 @@
 
 const ROTS = ['A', 'B', 'C'];
 const fmtPlat = (n) => (Math.round(n * 10) / 10).toFixed(1);
+let MIN_PLAT = 3; // overwritten from data.params.minPlat
 
 const esc = (s) =>
   String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -53,21 +54,24 @@ function rotBar(mission, maxTotal) {
     </div>`;
 }
 
+function priceCell(d) {
+  if (!d.tradable)
+    return '<span class="drop__price drop__price--na" title="Not tradable on warframe.market">—</span>';
+  if (d.value <= 0)
+    return `<span class="drop__price drop__price--na" title="Sells under ${MIN_PLAT}p — counted as 0">&lt;${MIN_PLAT}p</span>`;
+  return `<span class="drop__price">${fmtPlat(d.value)}p</span>`;
+}
+
 function rotPanel(rot, data) {
   if (!data) return '';
   const drops = data.rewards
     .map((d) => {
       const zero = d.value <= 0 ? ' drop--zero' : '';
-      const sub = !d.tradable
-        ? '<span class="drop__sub">not tradable</span>'
-        : d.value <= 0
-        ? '<span class="drop__sub">below threshold</span>'
-        : `<span class="drop__sub">${esc(d.value)}p each · ${(d.chance * 100).toFixed(2)}%</span>`;
       return `<div class="drop${zero}">
           <span class="drop__name" title="${esc(d.item)}">${esc(d.item)}</span>
+          ${priceCell(d)}
           <span class="drop__chance">${(d.chance * 100).toFixed(1)}%</span>
           <span class="drop__contrib">${fmtPlat(d.contribution)}p</span>
-          ${sub}
         </div>`;
     })
     .join('');
@@ -76,6 +80,9 @@ function rotPanel(rot, data) {
       <div class="rot__head">
         <span class="rot__name">ROTATION ${rot}</span>
         <span class="rot__ev">${fmtPlat(data.ev)}p <small>/ run</small></span>
+      </div>
+      <div class="drop drop--head" title="Expected value (EV) = sell price each × drop chance">
+        <span>Reward</span><span>Each</span><span>Chance</span><span>EV</span>
       </div>
       ${drops}
     </div>`;
@@ -130,6 +137,7 @@ async function main() {
     return;
   }
 
+  MIN_PLAT = data.params?.minPlat ?? MIN_PLAT;
   setReadout(data);
   const maxTotal = Math.max(...data.missions.map((m) => m.totalValue), 1);
 

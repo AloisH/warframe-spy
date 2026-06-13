@@ -52,6 +52,20 @@ lib/wfm.mjs        warframe.market client (rate-limited) + item pricing
 public/            index.html, styles.css, app.js, data.json (generated)
 ```
 
+## Deploy to GitHub Pages
+
+The site is fully static, so GitHub Pages works well. Because `data.json` is a
+snapshot, the included workflow (`.github/workflows/deploy.yml`) rebuilds it with
+fresh prices and deploys `public/` automatically:
+
+- on every push to `main`,
+- every 6 hours (so prices stay current), and
+- on demand via **Actions → Run workflow**.
+
+One-time setup after pushing to GitHub: **Settings → Pages → Build and deployment →
+Source: GitHub Actions**. All asset paths are relative, so it works under a project
+subpath like `https://<user>.github.io/warframe-spy/`.
+
 ## Data sources
 
 - Drop table: Digital Extremes' official export

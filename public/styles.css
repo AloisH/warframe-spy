@@ -114,8 +114,13 @@ body {
 
 /* ============================================================ CONTROLS */
 .controls {
+  /* gutter container — matches .masthead / .method / .board so the panel
+     lines up with the mission cards below it */
   position: relative; z-index: 2;
-  max-width: 1080px; margin: 26px auto 0; padding: 16px 22px;
+  max-width: 1080px; margin: 26px auto 0; padding: 0 24px;
+}
+.controls__panel {
+  padding: 16px 22px;
   border: 1px solid var(--line-soft);
   background: linear-gradient(180deg, rgba(17,23,32,.7), rgba(12,16,20,.5));
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));

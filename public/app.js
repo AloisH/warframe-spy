@@ -14,7 +14,10 @@ const esc = (s) =>
 
 let cards = [];
 let threshold = 3;
+let excludeRelics = false;
 let board;
+
+const isRelic = (name) => /\brelic$/i.test(name);
 
 function timeAgo(iso) {
   const secs = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -146,9 +149,11 @@ function buildCard(mission, domIndex) {
 
 // --- live update ---------------------------------------------------------
 
-function priceText(d, t) {
+function priceText(d, t, excluded) {
   if (!d.tradable) return { txt: '—', cls: 'drop__price drop__price--na', title: 'Not tradable on warframe.market' };
   if (d.value <= 0) return { txt: '—', cls: 'drop__price drop__price--na', title: 'No live sell orders found' };
+  if (excluded)
+    return { txt: `${fmtPlat(d.value)}p`, cls: 'drop__price drop__price--cut', title: 'Relics excluded — counted as 0' };
   if (d.value < t)
     return { txt: `${fmtPlat(d.value)}p`, cls: 'drop__price drop__price--cut', title: `Below the ${t}p filter — counted as 0` };
   return { txt: `${fmtPlat(d.value)}p`, cls: 'drop__price', title: '' };
@@ -160,11 +165,12 @@ function updateCard(card, t) {
     let ev = 0;
     for (const dr of card.dropsByRot[rot]) {
       const d = dr.reward;
-      const v = d.value >= t ? d.value : 0;
+      const excluded = excludeRelics && isRelic(d.item);
+      const v = !excluded && d.value >= t ? d.value : 0;
       const contrib = d.chance * v;
       ev += contrib;
       dr.contribEl.textContent = `${fmtPlat(contrib)}p`;
-      const p = priceText(d, t);
+      const p = priceText(d, t, excluded);
       dr.priceEl.textContent = p.txt;
       dr.priceEl.className = p.cls;
       dr.priceEl.title = p.title;
@@ -263,6 +269,14 @@ function wireSlider(data) {
     applyFilter();
   });
   refresh();
+
+  const relicBtn = document.getElementById('exclude-relics');
+  relicBtn.addEventListener('click', () => {
+    excludeRelics = !excludeRelics;
+    relicBtn.classList.toggle('active', excludeRelics);
+    relicBtn.setAttribute('aria-pressed', String(excludeRelics));
+    applyFilter();
+  });
 }
 
 // --- entry ---------------------------------------------------------------

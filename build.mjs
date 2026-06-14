@@ -18,6 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseMissions, parseDropsBySource, parseBounties } from './lib/parse.mjs';
 import { loadCatalogue, priceItem } from './lib/wfm.mjs';
+import { SYNDICATES, AUGMENT_STANDING } from './lib/syndicates.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = path.join(__dirname, '.cache');
@@ -42,11 +43,16 @@ const CACHE_TYPE = 'Sabotage Caches';
 
 // Open-world bounty "types" (tabs), shown after the mission types.
 const WORLD_TYPES = ['Cetus', 'Orb Vallis', 'Cambion Drift', 'Zariman', "Albrecht's Labs", 'Hex'];
+
+// Syndicate "types" (tabs), shown last. Each syndicate's shop is its own tab.
+const SYNDICATE_TYPES = SYNDICATES.map((s) => s.name);
+
 const TYPE_ORDER = [
   ...CURATED_TYPES.slice(0, CURATED_TYPES.indexOf('Sabotage') + 1),
   CACHE_TYPE,
   ...CURATED_TYPES.slice(CURATED_TYPES.indexOf('Sabotage') + 1),
   ...WORLD_TYPES,
+  ...SYNDICATE_TYPES,
 ];
 
 // Bounty rotation weighting: A/B/C cycle is A-A-B-C; a lone "Final" is the
@@ -222,6 +228,25 @@ async function main() {
   missions.push(...caches);
   console.log(`     ${caches.length} star-chart Sabotage cache nodes.`);
 
+  // Syndicate shops. Offerings + standing cost are hardcoded (lib/syndicates.mjs);
+  // the build only refreshes the WFM resale price. Each offering is its own row,
+  // ranked by plat resale within the syndicate (cost is a flat 25k, so plat order
+  // == plat-per-standing order). Modelled as a single guaranteed "reward".
+  const syndicateRows = SYNDICATES.flatMap((s) =>
+    s.offerings.map((item) => ({
+      name: `${s.name} / ${item}`,
+      type: s.name,
+      planet: `${AUGMENT_STANDING / 1000}k standing`,
+      node: item,
+      isEvent: false,
+      isSyndicate: true,
+      standing: AUGMENT_STANDING,
+      rotations: { A: [{ item, chance: 1 }] },
+    }))
+  );
+  missions.push(...syndicateRows);
+  console.log(`     ${syndicateRows.length} syndicate offerings across ${SYNDICATE_TYPES.length} syndicates.`);
+
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
@@ -307,6 +332,18 @@ async function main() {
       };
     }
 
+    if (m.isSyndicate) {
+      // One guaranteed offering; the card's value is its WFM resale price.
+      return {
+        name: m.name, type: m.type, planet: m.planet, node: m.node, isEvent: false,
+        metricLabel: 'plat resale',
+        standing: m.standing,
+        weights: { A: 1 },
+        labels: { A: 'Resale' },
+        rotations,
+      };
+    }
+
     const weights = rotationWeights(m.type, rotKeys);
     let label = metricLabel(m.type, rotKeys);
     if (m.bossMods?.length) {
@@ -353,7 +390,7 @@ async function main() {
     key: t,
     label: t,
     count: out.filter((m) => m.type === t).length,
-    group: WORLD_TYPES.includes(t) ? 'world' : 'mission',
+    group: WORLD_TYPES.includes(t) ? 'world' : SYNDICATE_TYPES.includes(t) ? 'syndicate' : 'mission',
   }));
 
   const maxItemValue = Math.max(
@@ -370,8 +407,8 @@ async function main() {
     params: {
       defaultMinPlat: DEFAULT_MIN_PLAT,
       maxItemValue: fmt(maxItemValue),
-      valueMetric: 'average of up to 5 lowest online sell orders (raw, unfiltered)',
-      model: 'Spy = EV(A)+EV(B)+EV(C); endless = A-A-B-C weighted plat/reward; single = EV(A); caches = EV of all hidden caches',
+      valueMetric: 'average of up to 5 lowest online sell orders, dropping outliers over 5x the cheapest',
+      model: 'Spy = EV(A)+EV(B)+EV(C); endless = A-A-B-C weighted plat/reward; single = EV(A); caches = EV of all hidden caches; syndicate = plat resale of offering',
       relicSubtype: 'intact',
     },
     types: typeList,

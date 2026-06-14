@@ -24,7 +24,8 @@ takes about **2.5 minutes**.
 ## How profitability is calculated
 
 - **Item value** = the average of the up to **5 lowest live sell orders** from
-  online sellers (`GET /v2/orders/item/{slug}/top`), priced **as dropped**:
+  online sellers (`GET /v2/orders/item/{slug}/top`), discarding obvious
+  troll/placeholder outliers (any order over 5× the cheapest), priced **as dropped**:
   - Mods & arcanes at **rank 0** (`rank=0`) — a dropped arcane is unranked; the
     maxed rank-5 copies (≈21 fused) sell for far more and would otherwise inflate it.
   - Relics as **intact** (`subtype=intact`).
@@ -65,6 +66,15 @@ takes about **2.5 minutes**.
     several stages gets its **probability of dropping at least once this run**
     (`1 − Π(1 − p_stage)`, so it never exceeds 100%). Rotations are then weighted by
     the A‑A‑B‑C cycle. Worlds that only list a final-stage reward use that table.
+  - **Syndicates** (Steel Meridian, Arbiters of Hexis, Cephalon Suda, The Perrin
+    Sequence, Red Veil, New Loka) — **plat resale** of each shop offering. Each
+    syndicate's augment-mod offerings and their standing cost are **hardcoded**
+    (`lib/syndicates.mjs`, a flat 25,000 standing per augment); the build only
+    refreshes the warframe.market price. Offerings are ranked by resale plat
+    within each syndicate (cost is uniform, so that's also plat-per-standing
+    order). The offering lists were extracted once from
+    [WFCD warframe-items](https://github.com/WFCD/warframe-items); DE's public
+    manifest does **not** publish syndicate offerings or standing costs.
 
 The curated types and their tab order live in `CURATED_TYPES` / `TYPE_ORDER` in
 `build.mjs`. PvP (Conclave), Railjack/Proxima, Duviri, and event one-offs are excluded.

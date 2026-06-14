@@ -42,6 +42,11 @@ takes about **2.5 minutes**.
     frequency: `0.5·EV(A) + 0.25·EV(B) + 0.25·EV(C)`.
   - **Single-completion** (Capture, Exterminate, Rescue, Sabotage, Mobile Defense,
     Arena) — `EV` of the single reward you get.
+  - **Sabotage Caches** — **plat per full cache run**: the classic star-chart
+    sabotage nodes (Cervantes, Gradivus, …) appear in the drop table *only* as
+    `<Node> (Caches)` tables, with Rotation A/B/C = the 1st/2nd/3rd hidden cache.
+    Opening all three is one roll on each, so the score is `EV(A)+EV(B)+EV(C)`
+    (the Spy model). Railjack/Proxima and event caches are excluded.
   - **Assassination** — **plat per boss kill**: the kill reward table *plus* the
     boss's mod drops (from "Mod Drops by Source"), folded into one per-kill source
     where each mod's odds = `item% × mod-table drop chance`. This matters a lot —
@@ -56,8 +61,8 @@ takes about **2.5 minutes**.
     (`1 − Π(1 − p_stage)`, so it never exceeds 100%). Rotations are then weighted by
     the A‑A‑B‑C cycle. Worlds that only list a final-stage reward use that table.
 
-The curated types and their tab order live in `CURATED_TYPES` in `build.mjs`.
-PvP (Conclave), Railjack, Duviri, sabotage caches and event one-offs are excluded.
+The curated types and their tab order live in `CURATED_TYPES` / `TYPE_ORDER` in
+`build.mjs`. PvP (Conclave), Railjack/Proxima, Duviri, and event one-offs are excluded.
 
 `build.mjs` stores **raw** market values, so the slider re-thresholds and re-ranks
 everything live in the browser. The slider's starting value is set by the `MIN_PLAT`

@@ -35,9 +35,19 @@ const CURATED_TYPES = [
 ];
 const CURATED = new Set(CURATED_TYPES);
 
+// Classic Sabotage caches are surfaced as their own mission-group tab, placed
+// right after Sabotage. (Not a parsed type — assembled below from "(Caches)"
+// tables — so it stays out of CURATED.)
+const CACHE_TYPE = 'Sabotage Caches';
+
 // Open-world bounty "types" (tabs), shown after the mission types.
 const WORLD_TYPES = ['Cetus', 'Orb Vallis', 'Cambion Drift', 'Zariman', "Albrecht's Labs", 'Hex'];
-const TYPE_ORDER = [...CURATED_TYPES, ...WORLD_TYPES];
+const TYPE_ORDER = [
+  ...CURATED_TYPES.slice(0, CURATED_TYPES.indexOf('Sabotage') + 1),
+  CACHE_TYPE,
+  ...CURATED_TYPES.slice(CURATED_TYPES.indexOf('Sabotage') + 1),
+  ...WORLD_TYPES,
+];
 
 // Bounty rotation weighting: A/B/C cycle is A-A-B-C; a lone "Final" is the
 // whole run. Used for "expected plat per full bounty run".
@@ -164,6 +174,33 @@ async function main() {
   missions.push(...bounties);
   console.log(`     ${bounties.length} bounty tiers across ${WORLD_TYPES.length} open worlds.`);
 
+  // Classic Sabotage caches. The drop table lists old sabotage nodes (Cervantes,
+  // Gradivus, …) ONLY as "<Node> (Caches)" tables — there's no separate mission
+  // reward table for them, which is why they're otherwise absent. Each table's
+  // Rotation A/B/C are the 1st/2nd/3rd hidden cache; opening all three is one
+  // roll on each, so value = EV(A)+EV(B)+EV(C) (the Spy model). Keep only
+  // star-chart sabotage nodes: drop Railjack "Skirmish" caches, event caches,
+  // and other modes (anything whose node also has a non-Sabotage mission table).
+  const primaryType = new Map();
+  for (const m of all) if (m.type !== 'Caches') primaryType.set(`${m.planet}/${m.node}`, m.type);
+  const caches = all
+    .filter((m) => m.type === 'Caches' && !m.isEvent)
+    .filter((m) => {
+      const t = primaryType.get(`${m.planet}/${m.node}`);
+      return t === undefined || t === 'Sabotage';
+    })
+    .map((m) => ({
+      name: `${m.planet}/${m.node}`,
+      type: CACHE_TYPE,
+      planet: m.planet,
+      node: m.node,
+      isEvent: false,
+      isCache: true,
+      rotations: m.rotations,
+    }));
+  missions.push(...caches);
+  console.log(`     ${caches.length} star-chart Sabotage cache nodes.`);
+
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
@@ -232,6 +269,21 @@ async function main() {
       };
     }
 
+    if (m.isCache) {
+      // Each cache is independent and you open all of them, so every rotation
+      // counts at weight 1 (sum of the caches), like Spy's three vaults.
+      const cacheWeights = Object.fromEntries(rotKeys.map((k) => [k, 1]));
+      const cacheNames = { A: 'Cache 1', B: 'Cache 2', C: 'Cache 3', D: 'Cache 4', E: 'Cache 5' };
+      for (const k of rotKeys) labels[k] = cacheNames[k] || `Cache ${k}`;
+      return {
+        name: m.name, type: m.type, planet: m.planet, node: m.node, isEvent: false,
+        metricLabel: rotKeys.length > 1 ? 'plat / all caches' : 'plat / cache',
+        weights: Object.fromEntries(Object.entries(cacheWeights).map(([k, v]) => [k, fmt(v)])),
+        labels,
+        rotations,
+      };
+    }
+
     const weights = rotationWeights(m.type, rotKeys);
     let label = metricLabel(m.type, rotKeys);
     if (m.bossMods?.length) {
@@ -286,7 +338,7 @@ async function main() {
       defaultMinPlat: DEFAULT_MIN_PLAT,
       maxItemValue: fmt(maxItemValue),
       valueMetric: 'average of up to 5 lowest online sell orders (raw, unfiltered)',
-      model: 'Spy = EV(A)+EV(B)+EV(C); endless = A-A-B-C weighted plat/reward; single = EV(A)',
+      model: 'Spy = EV(A)+EV(B)+EV(C); endless = A-A-B-C weighted plat/reward; single = EV(A); caches = EV of all hidden caches',
       relicSubtype: 'intact',
     },
     types: typeList,

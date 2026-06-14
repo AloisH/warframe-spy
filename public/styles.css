@@ -22,6 +22,7 @@
   --rot-c: #cf7bff;
   --rot-boss: #6ee7a8;
   --rot-final: #7aa2f7;
+  --rot-arcane: #ff7eb6;
 
   --text:      #e7eef6;
   --muted:     #8a98a8;
@@ -269,6 +270,7 @@ body {
 .bar__seg--c { background: linear-gradient(90deg, var(--rot-c), color-mix(in srgb, var(--rot-c) 60%, #000)); }
 .bar__seg--boss { background: linear-gradient(90deg, var(--rot-boss), color-mix(in srgb, var(--rot-boss) 60%, #000)); }
 .bar__seg--final { background: linear-gradient(90deg, var(--rot-final), color-mix(in srgb, var(--rot-final) 60%, #000)); }
+.bar__seg--arcane { background: linear-gradient(90deg, var(--rot-arcane), color-mix(in srgb, var(--rot-arcane) 60%, #000)); }
 .bar__seg--d, .bar__seg--e { background: var(--muted); }
 .barwrap { display: flex; flex-direction: column; gap: 6px; }
 .barwrap small { font-family: var(--mono); font-size: 10px; color: var(--faint); letter-spacing: .08em; }
@@ -308,6 +310,7 @@ body {
 .rot--c .rot__name { color: var(--rot-c); }
 .rot--boss .rot__name { color: var(--rot-boss); }
 .rot--final .rot__name { color: var(--rot-final); }
+.rot--arcane .rot__name { color: var(--rot-arcane); }
 .rot__ev { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--gold); }
 .rot__ev small { color: var(--faint); font-weight: 400; font-size: 10px; }
 

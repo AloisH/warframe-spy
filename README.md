@@ -53,6 +53,11 @@ takes about **2.5 minutes**.
     e.g. the Jackal's near-guaranteed Blunderbuss, or Kela De Thaym's clan mods —
     and the assassination reward table alone (non-tradable Warframe parts) would
     badly undersell these missions. Node→boss mapping lives in `ASSASSIN_BOSSES`.
+    Bosses whose **Steel Path** version drops a guaranteed Arcane (e.g. Captain
+    Vor on SP Mercury) add that as a third source and the metric becomes *plat /
+    SP boss kill*. These arcane tables aren't in DE's drop table — they're
+    hardcoded from the [WARFRAME wiki](https://wiki.warframe.com/) in
+    `SP_BOSS_ARCANES`; add a boss by pasting its table there.
   - **Open-world bounties** (Cetus, Orb Vallis, Cambion Drift, Zariman, Albrecht's
     Labs, Hex) — **plat per full bounty run**: each bounty (level tier, plus
     distinct variants like Ghoul / Isolation Vault / Arcana Vault) is a row. All of

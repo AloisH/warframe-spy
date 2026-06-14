@@ -82,6 +82,25 @@ const ASSASSIN_BOSSES = {
   'Höllvania/Assassinate: H-09 Tank': { boss: 'Efervon Tank', sources: ['H-09 Efervon Tank'] },
 };
 
+// Steel Path assassination bosses drop a guaranteed Arcane on top of the normal
+// kill reward (the percentages sum to 100% — exactly one arcane per SP kill).
+// These are NOT in DE's drop table; they come from the WARFRAME wiki
+// (https://wiki.warframe.com/w/<Boss>). Keyed by "<planet>/<node>", same as
+// ASSASSIN_BOSSES. Arcanes are priced at rank 0 (as dropped), like everything else.
+const SP_BOSS_ARCANES = {
+  // Captain Vor — Steel Path Mercury (Tolstoj). Source: wiki Captain_Vor.
+  'Mercury/Tolstoj': [
+    { item: 'Arcane Battery', chance: 0.125 },
+    { item: 'Arcane Power Ramp', chance: 0.125 },
+    { item: 'Arcane Blessing', chance: 0.125 },
+    { item: 'Arcane Steadfast', chance: 0.125 },
+    { item: 'Primary Obstruct', chance: 0.125 },
+    { item: 'Cascadia Flare', chance: 0.125 },
+    { item: 'Secondary Surge', chance: 0.125 },
+    { item: 'Melee Vortex', chance: 0.125 },
+  ],
+};
+
 // Merge a boss's mod sub-tables into one per-kill list: effective odds =
 // item odds × sub-table drop chance, summed across sub-tables/members.
 function bossModDrops(sources, modBySource) {
@@ -158,6 +177,8 @@ async function main() {
       m.bossMods = drops;
       bossNodes++;
     }
+    const sp = SP_BOSS_ARCANES[`${m.planet}/${m.node}`];
+    if (sp) m.spArcanes = sp;
   }
   console.log(`     boss mod drops attached to ${bossNodes} Assassination nodes.`);
 
@@ -215,6 +236,7 @@ async function main() {
   for (const m of missions) {
     for (const rewards of Object.values(m.rotations)) for (const r of rewards) note(r.item);
     for (const r of m.bossMods || []) note(r.item);
+    for (const r of m.spArcanes || []) note(r.item);
   }
   console.log(`     ${slugToItem.size} unique tradable items to price.`);
 
@@ -243,7 +265,8 @@ async function main() {
       item: r.item,
       slug: item?.slug ?? null,
       tradable: Boolean(item),
-      chance: fmt(r.chance),
+      // Keep chances to 0.01% so exact rates survive (12.50% stays 12.5%, not 13%).
+      chance: Math.round(r.chance * 10000) / 10000,
       value: priced ? priced.value : 0,
     };
   };
@@ -293,6 +316,16 @@ async function main() {
       labels.bossMods = 'Boss mods (per kill)';
       for (const k of rotKeys) labels[k] = 'Kill reward';
       label = 'plat / boss kill';
+    }
+    if (m.spArcanes?.length) {
+      // Steel Path adds a guaranteed arcane on top of the kill (its odds sum to
+      // 100%). Independent source, weight 1 — and the total now represents an
+      // SP kill, so the metric says so.
+      rotations.spArcanes = m.spArcanes.map(priceRow).sort(byValue);
+      weights.spArcanes = 1;
+      labels.spArcanes = 'Steel Path arcane (per SP kill)';
+      for (const k of rotKeys) labels[k] = 'Kill reward';
+      label = 'plat / SP boss kill';
     }
 
     return {

@@ -7,8 +7,10 @@
 // selected type, so the unit is comparable inside each tab.
 
 const fmtPlat = (n) => (Math.round(n * 10) / 10).toFixed(1);
-const segClass = (key) => (key === 'bossMods' ? 'boss' : key.toLowerCase());
-const shortLabel = (key) => (key === 'bossMods' ? 'mods' : key);
+const segClass = (key) =>
+  key === 'bossMods' ? 'boss' : key === 'spArcanes' ? 'arcane' : key.toLowerCase();
+const shortLabel = (key) =>
+  key === 'bossMods' ? 'mods' : key === 'spArcanes' ? 'SP arcane' : key;
 const esc = (s) =>
   String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 

@@ -232,17 +232,26 @@ async function main() {
   // the build only refreshes the WFM resale price. Each offering is its own row,
   // ranked by plat resale within the syndicate (cost is a flat 25k, so plat order
   // == plat-per-standing order). Modelled as a single guaranteed "reward".
+  // Offerings are either a bare mod name (flat augment standing) or
+  // [item, standingCost] for the variable-cost hub/relay syndicates.
+  const offering = (o, syn) =>
+    typeof o === 'string'
+      ? { item: o, standing: syn.defaultStanding ?? AUGMENT_STANDING }
+      : { item: o[0], standing: o[1] };
   const syndicateRows = SYNDICATES.flatMap((s) =>
-    s.offerings.map((item) => ({
-      name: `${s.name} / ${item}`,
-      type: s.name,
-      planet: `${AUGMENT_STANDING / 1000}k standing`,
-      node: item,
-      isEvent: false,
-      isSyndicate: true,
-      standing: AUGMENT_STANDING,
-      rotations: { A: [{ item, chance: 1 }] },
-    }))
+    s.offerings.map((o) => {
+      const { item, standing } = offering(o, s);
+      return {
+        name: `${s.name} / ${item}`,
+        type: s.name,
+        planet: `${standing / 1000}k standing`,
+        node: item,
+        isEvent: false,
+        isSyndicate: true,
+        standing,
+        rotations: { A: [{ item, chance: 1 }] },
+      };
+    })
   );
   missions.push(...syndicateRows);
   console.log(`     ${syndicateRows.length} syndicate offerings across ${SYNDICATE_TYPES.length} syndicates.`);

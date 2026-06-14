@@ -66,15 +66,21 @@ takes about **2.5 minutes**.
     several stages gets its **probability of dropping at least once this run**
     (`1 − Π(1 − p_stage)`, so it never exceeds 100%). Rotations are then weighted by
     the A‑A‑B‑C cycle. Worlds that only list a final-stage reward use that table.
-  - **Syndicates** (Steel Meridian, Arbiters of Hexis, Cephalon Suda, The Perrin
-    Sequence, Red Veil, New Loka) — **plat resale** of each shop offering. Each
-    syndicate's augment-mod offerings and their standing cost are **hardcoded**
-    (`lib/syndicates.mjs`, a flat 25,000 standing per augment); the build only
-    refreshes the warframe.market price. Offerings are ranked by resale plat
-    within each syndicate (cost is uniform, so that's also plat-per-standing
-    order). The offering lists were extracted once from
-    [WFCD warframe-items](https://github.com/WFCD/warframe-items); DE's public
-    manifest does **not** publish syndicate offerings or standing costs.
+  - **Syndicates** — **plat resale** of each shop offering, with the item's
+    **standing cost** shown. Two kinds:
+    - the six relay syndicates (Steel Meridian, Arbiters of Hexis, Cephalon Suda,
+      The Perrin Sequence, Red Veil, New Loka) sell Warframe/weapon **augment
+      mods** at a flat 25,000 standing (offering lists from
+      [WFCD warframe-items](https://github.com/WFCD/warframe-items));
+    - the hub/relay syndicates (The Quills, Vox Solaris, The Holdfasts,
+      Necraloid, Cephalon Simaris, The Hex) sell **arcanes / mods** at
+      **variable** per-item standing (transcribed from each syndicate's wiki
+      Offerings table).
+    Offerings + costs are **hardcoded** in `lib/syndicates.mjs` (each is
+    `[item, standing]`); the build only refreshes the warframe.market price and
+    zeroes anything not tradable (e.g. Umbral/Sacrificial mods). Ranked by resale
+    plat within each syndicate. DE's public manifest does **not** publish
+    syndicate offerings or standing costs, hence the hardcoding.
 
 The curated types and their tab order live in `CURATED_TYPES` / `TYPE_ORDER` in
 `build.mjs`. PvP (Conclave), Railjack/Proxima, Duviri, and event one-offs are excluded.

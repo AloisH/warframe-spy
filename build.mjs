@@ -48,6 +48,9 @@ const WORLD_TYPES = ['Cetus', 'Orb Vallis', 'Cambion Drift', 'Zariman', "Albrech
 // open worlds, before the syndicate shops).
 const DERELICT_TYPE = 'Corrupted Mods';
 
+// Lua's Halls of Ascension puzzle rooms, their own single-row-per-hall tab.
+const HALLS_TYPE = 'Halls of Ascension';
+
 // Syndicate "types" (tabs), shown last. Each syndicate's shop is its own tab.
 const SYNDICATE_TYPES = SYNDICATES.map((s) => s.name);
 
@@ -57,6 +60,7 @@ const TYPE_ORDER = [
   ...CURATED_TYPES.slice(CURATED_TYPES.indexOf('Sabotage') + 1),
   ...WORLD_TYPES,
   DERELICT_TYPE,
+  HALLS_TYPE,
   ...SYNDICATE_TYPES,
 ];
 
@@ -111,6 +115,21 @@ const SP_BOSS_ARCANES = {
     { item: 'Melee Vortex', chance: 0.125 },
   ],
 };
+
+// Halls of Ascension (aka "The Seven Principles"): hidden puzzle rooms on the
+// Lua (Orokin Moon) tileset, each guaranteeing a unique Drift Mod that drops
+// nowhere else in the game. NOT in DE's drop table (they're player-skill gated,
+// not a random drop) — hardcoded from the WARFRAME wiki
+// (https://wiki.warframe.com/w/Orokin_Moon, https://wiki.warframe.com/w/Drift_Mods).
+const LUA_HALLS = [
+  { test: 'Agility Test', item: 'Agility Drift' },
+  { test: 'Collaboration Test', item: 'Coaction Drift' },
+  { test: 'Cunning Test', item: 'Cunning Drift' },
+  { test: 'Endurance Test', item: 'Endurance Drift' },
+  { test: 'Power Test', item: 'Power Drift' },
+  { test: 'Speed Test', item: 'Speed Drift' },
+  { test: 'Stealth Test', item: 'Stealth Drift' },
+];
 
 // Merge a boss's mod sub-tables into one per-kill list: effective odds =
 // item odds × sub-table drop chance, summed across sub-tables/members.
@@ -277,6 +296,19 @@ async function main() {
   }
   console.log(`     ${derelictMods.length} corrupted mods in the Derelict Vault pool.`);
 
+  // Halls of Ascension: each hall is its own row with one guaranteed Drift Mod.
+  const hallRows = LUA_HALLS.map((h) => ({
+    name: `Lua / ${h.test}`,
+    type: HALLS_TYPE,
+    planet: 'Lua',
+    node: h.test,
+    isEvent: false,
+    isHall: true,
+    rotations: { A: [{ item: h.item, chance: 1 }] },
+  }));
+  missions.push(...hallRows);
+  console.log(`     ${hallRows.length} Halls of Ascension puzzles.`);
+
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
@@ -385,6 +417,17 @@ async function main() {
       };
     }
 
+    if (m.isHall) {
+      // One guaranteed Drift Mod for solving the puzzle.
+      return {
+        name: m.name, type: m.type, planet: m.planet, node: m.node, isEvent: false,
+        metricLabel: 'plat / puzzle',
+        weights: { A: 1 },
+        labels: { A: 'Drift mod' },
+        rotations,
+      };
+    }
+
     const weights = rotationWeights(m.type, rotKeys);
     let label = metricLabel(m.type, rotKeys);
     if (m.bossMods?.length) {
@@ -435,8 +478,8 @@ async function main() {
       ? 'world'
       : SYNDICATE_TYPES.includes(t)
         ? 'syndicate'
-        : t === DERELICT_TYPE
-          ? 'derelict'
+        : t === DERELICT_TYPE || t === HALLS_TYPE
+          ? 'special'
           : 'mission',
   }));
 

@@ -87,6 +87,11 @@ takes about **2.5 minutes**.
     Charge / Extractor / Isolator / …), so this is modelled as one guaranteed
     reward drawn from the whole pool. Unlike Syndicates, this is parsed directly
     from the drop table (no hardcoding needed).
+  - **Halls of Ascension** — **plat per puzzle**: Lua (Orokin Moon)'s seven
+    hidden puzzle rooms ("The Seven Principles"), each guaranteeing a unique
+    Drift Mod that drops nowhere else. Player-skill gated, not a random drop,
+    so it isn't in DE's table — hardcoded from the WARFRAME wiki in
+    `LUA_HALLS`.
 
 The curated types and their tab order live in `CURATED_TYPES` / `TYPE_ORDER` in
 `build.mjs`. PvP (Conclave), Railjack/Proxima, Duviri, and event one-offs are excluded.

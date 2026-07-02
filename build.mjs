@@ -16,7 +16,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseMissions, parseDropsBySource, parseBounties } from './lib/parse.mjs';
+import { parseMissions, parseDropsBySource, parseBounties, parseDerelictVault } from './lib/parse.mjs';
 import { loadCatalogue, priceItem } from './lib/wfm.mjs';
 import { SYNDICATES, AUGMENT_STANDING } from './lib/syndicates.mjs';
 
@@ -44,6 +44,10 @@ const CACHE_TYPE = 'Sabotage Caches';
 // Open-world bounty "types" (tabs), shown after the mission types.
 const WORLD_TYPES = ['Cetus', 'Orb Vallis', 'Cambion Drift', 'Zariman', "Albrecht's Labs", 'Hex'];
 
+// Orokin Derelict corrupted-mod vault, its own single-row tab (shown after the
+// open worlds, before the syndicate shops).
+const DERELICT_TYPE = 'Corrupted Mods';
+
 // Syndicate "types" (tabs), shown last. Each syndicate's shop is its own tab.
 const SYNDICATE_TYPES = SYNDICATES.map((s) => s.name);
 
@@ -52,6 +56,7 @@ const TYPE_ORDER = [
   CACHE_TYPE,
   ...CURATED_TYPES.slice(CURATED_TYPES.indexOf('Sabotage') + 1),
   ...WORLD_TYPES,
+  DERELICT_TYPE,
   ...SYNDICATE_TYPES,
 ];
 
@@ -256,6 +261,22 @@ async function main() {
   missions.push(...syndicateRows);
   console.log(`     ${syndicateRows.length} syndicate offerings across ${SYNDICATE_TYPES.length} syndicates.`);
 
+  // Orokin Derelict Vault: one Dragon Key opens one vault and guarantees one
+  // corrupted mod drawn from the flat 24-mod pool ("Derelict Vault" table).
+  const derelictMods = parseDerelictVault(html);
+  if (derelictMods.length) {
+    missions.push({
+      name: 'Orokin Derelict Vault',
+      type: DERELICT_TYPE,
+      planet: 'Orokin Derelict',
+      node: 'Derelict Vault',
+      isEvent: false,
+      isDerelict: true,
+      rotations: { A: derelictMods },
+    });
+  }
+  console.log(`     ${derelictMods.length} corrupted mods in the Derelict Vault pool.`);
+
   console.log('2/4  Loading WFM item catalogue...');
   const { resolve } = await loadCatalogue();
 
@@ -353,6 +374,17 @@ async function main() {
       };
     }
 
+    if (m.isDerelict) {
+      // One guaranteed corrupted mod, drawn from the whole vault pool.
+      return {
+        name: m.name, type: m.type, planet: m.planet, node: m.node, isEvent: false,
+        metricLabel: 'plat / vault key',
+        weights: { A: 1 },
+        labels: { A: 'Vault reward' },
+        rotations,
+      };
+    }
+
     const weights = rotationWeights(m.type, rotKeys);
     let label = metricLabel(m.type, rotKeys);
     if (m.bossMods?.length) {
@@ -399,7 +431,13 @@ async function main() {
     key: t,
     label: t,
     count: out.filter((m) => m.type === t).length,
-    group: WORLD_TYPES.includes(t) ? 'world' : SYNDICATE_TYPES.includes(t) ? 'syndicate' : 'mission',
+    group: WORLD_TYPES.includes(t)
+      ? 'world'
+      : SYNDICATE_TYPES.includes(t)
+        ? 'syndicate'
+        : t === DERELICT_TYPE
+          ? 'derelict'
+          : 'mission',
   }));
 
   const maxItemValue = Math.max(

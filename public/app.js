@@ -230,7 +230,7 @@ function selectTab(type) {
 function buildTabs(data) {
   const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
-  const groupName = { mission: 'Missions', world: 'Bounties', syndicate: 'Syndicates' };
+  const groupName = { mission: 'Missions', world: 'Bounties', derelict: 'Corrupted Mods', syndicate: 'Syndicates' };
   let lastGroup = null;
   for (const t of data.types) {
     if (t.group && t.group !== lastGroup) {

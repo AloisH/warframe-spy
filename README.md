@@ -81,6 +81,12 @@ takes about **2.5 minutes**.
     zeroes anything not tradable (e.g. Umbral/Sacrificial mods). Ranked by resale
     plat within each syndicate. DE's public manifest does **not** publish
     syndicate offerings or standing costs, hence the hardcoding.
+  - **Corrupted Mods** — **plat per Dragon Key** (Orokin Derelict Vault): the
+    official drop table's "Derelict Vault" table lists all 24 corrupted mods at
+    a flat ~4.17% (1/24) each — it doesn't split the pool by key type (Corrupt
+    Charge / Extractor / Isolator / …), so this is modelled as one guaranteed
+    reward drawn from the whole pool. Unlike Syndicates, this is parsed directly
+    from the drop table (no hardcoding needed).
 
 The curated types and their tab order live in `CURATED_TYPES` / `TYPE_ORDER` in
 `build.mjs`. PvP (Conclave), Railjack/Proxima, Duviri, and event one-offs are excluded.
